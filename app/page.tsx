@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, AppBar, Box, Button, Card, CardContent, Chip, Collapse, Container, Dialog, DialogActions, DialogContent,
-  DialogTitle, Divider, FormControlLabel, Grid, IconButton, InputAdornment, LinearProgress, MenuItem, Paper, Slider,
+  DialogTitle, Divider, FormControlLabel, Grid, IconButton, InputAdornment, LinearProgress, Link, MenuItem, Paper, Slider,
   Stack, Switch, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField,
   ToggleButton, ToggleButtonGroup, Toolbar, Tooltip as MuiTooltip, Typography,
 } from "@mui/material";
@@ -16,6 +16,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import SaveIcon from "@mui/icons-material/SaveOutlined";
 import InsightsIcon from "@mui/icons-material/Insights";
 import KeyIcon from "@mui/icons-material/Key";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import MarkEmailReadIcon from "@mui/icons-material/MarkEmailRead";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import ScienceIcon from "@mui/icons-material/Science";
@@ -30,9 +31,12 @@ import { Tooltip } from "@/components/Charts";
 import ResultsView, { Block, LabelChip } from "@/components/ResultsView";
 import CallInspector, { QTYPES, QTypeChip } from "@/components/CallInspector";
 import AnswerCards from "@/components/AnswerCards";
+import ExampleTour from "@/components/ExampleTour";
 import { ScoreQuestionEditor } from "@/components/ScoreView";
 
 const KEY_STORE = "jev-demo-key";
+/** Where visitors create a TypeSafe API key (per docs.typesafe.ai quickstart: "Get your API key from the dashboard"). */
+const KEY_URL = "https://console.typesafe.ai";
 
 class JevError extends Error {
   constructor(message: string, public trace?: JevTrace) { super(message); }
@@ -51,6 +55,20 @@ async function classify(key: string, email: { subject: string; body: string }, s
   return data;
 }
 
+/** Numbered section heading for the Example tour. */
+function Step({ n, title, caption }: { n: number; title: string; caption?: string }) {
+  return (
+    <Stack direction="row" sx={{ gap: 1.25, alignItems: "flex-start", mb: 1.5, mt: 1 }}>
+      <Box sx={{ width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center", flex: "none", mt: "1px",
+        bgcolor: "primary.main", color: "primary.contrastText", fontSize: 12.5, fontWeight: 700 }}>{n}</Box>
+      <Box>
+        <Typography variant="subtitle1" sx={{ lineHeight: 1.6 }}>{title}</Typography>
+        {caption && <Typography variant="body2" color="text.secondary">{caption}</Typography>}
+      </Box>
+    </Stack>
+  );
+}
+
 const prettyCat = (c: string) => c.replace(/_/g, " ");
 const isKeyError = (msg: string) => /HTTP 40[13]|No TypeSafe API key/.test(msg);
 
@@ -60,7 +78,6 @@ export default function Page() {
   // --- example (saved run, no key needed)
   const [example, setExample] = useState<ExampleRun | null>(null);
   const [exampleErr, setExampleErr] = useState("");
-  const [sampleIdx, setSampleIdx] = useState(0);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // --- settings
@@ -136,7 +153,7 @@ export default function Page() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setSaveMsg({ ok: true, msg: `Saved ${d.rows} emails and ${d.samples} samples as the example (data/example-run.json).` });
-      setExample(null); setSampleIdx(0);
+      setExample(null);
     } catch (e) { setSaveMsg({ ok: false, msg: (e as Error).message }); }
   }
 
@@ -334,7 +351,6 @@ export default function Page() {
     </Stack>
   );
 
-  const sample = example?.samples[Math.min(sampleIdx, Math.max(0, (example?.samples.length ?? 1) - 1))];
   const exampleView = !example ? (
     <Paper variant="outlined" sx={{ p: 6, textAlign: "center", borderRadius: "16px" }}>
       <Typography color="text.secondary">{exampleErr ? `Example not available: ${exampleErr}` : "Loading the example…"}</Typography>
@@ -353,35 +369,40 @@ export default function Page() {
         </Alert>
       )}
 
-      {example.samples.length > 0 && sample && (
-        <Card>
-          <CardContent>
-            <Block title="Sample emails" caption="Pick an email to see JEV's three answers and the exact request and response.">
-              <ToggleButtonGroup exclusive size="small" value={Math.min(sampleIdx, example.samples.length - 1)} onChange={(_, v) => v !== null && setSampleIdx(v)}
-                sx={{ flexWrap: "wrap", mb: 2.5, maxWidth: "100%" }}>
-                {example.samples.map((r, i) => (
-                  <ToggleButton key={i} value={i} sx={{ px: 1.5, maxWidth: 260 }}>
-                    <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.subject || "(no subject)"}</Box>
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-              <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: "action.hover", borderColor: "transparent" }}>
-                <Stack direction="row" sx={{ gap: 1.5, alignItems: "center", mb: 0.5, flexWrap: "wrap" }}>
-                  <Typography variant="subtitle2">{sample.subject || "(no subject)"}</Typography>
-                  {sample.message_id >= 0 && <><Typography variant="caption" color="text.secondary">dataset label</Typography><LabelChip label={sample.label} /></>}
-                </Stack>
-                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap", maxHeight: 120, overflow: "auto" }}>{sample.body}</Typography>
-              </Paper>
-              <AnswerCards result={sample} threshold={threshold} scoreQuestion={example.scoreQuestion} />
-              {sample.trace && <Box sx={{ mt: 2 }}><CallInspector trace={sample.trace} /></Box>}
-            </Block>
-          </CardContent>
-        </Card>
+      {example.samples.length > 0 && (
+        <Box>
+          <Step n={1} title="Read an email, see JEV's answers" />
+          <ExampleTour samples={example.samples} threshold={threshold} scoreQuestion={example.scoreQuestion} />
+        </Box>
       )}
 
       <Box>
-        <Typography variant="subtitle1" sx={{ mb: 1, mt: 1 }}>Dataset run · {example.rows.length} Enron-Spam emails</Typography>
+        <Step n={2} title={`See it at scale · ${example.rows.length} Enron-Spam emails`}
+          caption="The same three questions, one JEV call per email. Drag the spam threshold and watch every chart update." />
         <ResultsView rows={example.rows} threshold={threshold} onThreshold={setThreshold} onSelect={setSelected} />
+      </Box>
+
+      <Box>
+        <Step n={3} title="Now ask JEV yourself" />
+        <Card sx={{ overflow: "hidden", position: "relative" }}>
+          <Box sx={{ position: "absolute", inset: 0, opacity: 0.08, pointerEvents: "none",
+            background: "linear-gradient(120deg, var(--q-noul), var(--q-choice) 55%, var(--q-score))" }} />
+          <CardContent sx={{ position: "relative" }}>
+            <Stack direction={{ xs: "column", md: "row" }} sx={{ gap: 2, alignItems: { md: "center" } }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6">Paste any email, or run your own sample of the dataset</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  You need a TypeSafe API key: get one from the <Link href={KEY_URL} target="_blank" rel="noopener noreferrer">TypeSafe console</Link>.
+                  It goes only to this app&apos;s server, which forwards it to JEV and never stores it.
+                </Typography>
+              </Box>
+              <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
+                <Button variant="contained" startIcon={<MarkEmailReadIcon />} onClick={() => key ? setView("try") : openSettings("Add your TypeSafe API key, then try an email.")}>Try an email</Button>
+                <Button variant="outlined" startIcon={<PlayArrowIcon />} onClick={() => key ? setView("dataset") : openSettings("Add your TypeSafe API key, then run on the dataset.")}>Run on dataset</Button>
+              </Stack>
+            </Stack>
+          </CardContent>
+        </Card>
       </Box>
     </Stack>
   );
@@ -445,9 +466,14 @@ export default function Page() {
           <Stack spacing={3}>
             {settingsHint && <Alert severity="info">{settingsHint}</Alert>}
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>TypeSafe API key</Typography>
+              <Stack direction="row" sx={{ alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 500, flex: 1 }}>TypeSafe API key</Typography>
+                <Button size="small" href={KEY_URL} target="_blank" rel="noopener noreferrer" endIcon={<OpenInNewIcon sx={{ fontSize: "16px !important" }} />}>
+                  Get an API key
+                </Button>
+              </Stack>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                Sent only to this app&apos;s server, which forwards it to api.typesafe.ai. Never logged or stored on the server. No key? The Example tab shows a full run.
+                Sent only to this app&apos;s server, which forwards it to api.typesafe.ai. Never logged or stored on the server. No key yet? Sign in to the <Link href={KEY_URL} target="_blank" rel="noopener noreferrer">TypeSafe console</Link> to create one.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ alignItems: { sm: "center" } }}>
                 <TextField fullWidth size="small" label="API key" type={showKey ? "text" : "password"} value={key} autoComplete="off"
