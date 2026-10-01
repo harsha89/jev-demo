@@ -1,0 +1,10 @@
+# Netlify detects Next.js and deploys it with its Next.js runtime (API routes become serverless functions).
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Do NOT set TYPESAFE_API_KEY on a public deployment unless ALLOW_SERVER_KEY is also "true":
+# otherwise every visitor would be using your key. Visitors bring their own key, or use the Example tab.

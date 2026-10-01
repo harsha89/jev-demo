@@ -68,11 +68,11 @@ export function Confusion({ m }: { m: Metrics }) {
       <div /><div className="h">JEV says spam</div><div className="h">JEV says ham</div>
       {cells.map(([actual, pred, v, name], i) => {
         const share = rowsum[actual] ? v / rowsum[actual] : 0;
-        const step = share === 0 ? 0 : share < 0.25 ? 1 : share < 0.5 ? 2 : share < 0.8 ? 3 : 4;
-        const ink = step <= 2 ? "var(--text-primary)" : step === 4 ? "var(--surface)" : "#fff";
+        // soft single-hue tint (5% → 30%) so dark text always reads; shade = share of the row
+        const bg = `color-mix(in srgb, var(--ham) ${Math.round(5 + share * 25)}%, var(--surface))`;
         return [
           i % 2 === 0 ? <div key={`h${i}`} className="rh">Actually {actual}</div> : null,
-          <div key={i} className="cell" style={{ background: `var(--seq-${step})`, color: ink }}
+          <div key={i} className="cell" style={{ background: bg, color: "var(--text-primary)" }}
             data-tip={`${name}: ${v} of ${rowsum[actual]} actual ${actual}`}>
             <b>{v}</b><small>{Math.round(share * 100)}% · {actual === pred ? "✓" : "✗"} {name}</small>
           </div>,

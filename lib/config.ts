@@ -66,7 +66,25 @@ export type ScoreAnswer = {
 
 export type JevResult = {
   p_spam: number; category: string; category_conf: number;
+  /** Choice probability for every category option. */
+  category_probs?: Record<string, number>;
   score?: ScoreAnswer; trace?: JevTrace;
 };
 
 export type Row = Email & JevResult;
+
+/**
+ * A saved run shown on the Example tab (no API key needed). Stored in data/example-run.json.
+ * "illustrative" = placeholder data that did not come from JEV; "recorded" = saved from a real run.
+ */
+export type ExampleRun = {
+  source: "illustrative" | "recorded";
+  recordedAt: string;
+  model: string;
+  note?: string;
+  scoreQuestion: ScoreQuestion | null;
+  /** A few emails shown with answer cards + request/response. */
+  samples: Row[];
+  /** The dataset run behind the charts. */
+  rows: Row[];
+};

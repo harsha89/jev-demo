@@ -1,0 +1,69 @@
+/* Chart, code and question-type tokens. Everything else is styled by the MUI theme (app/theme.ts).
+   --surface matches the MUI paper colour so mark rings/gaps blend into the cards. */
+:root {
+  --surface: #ffffff; --border: #e6e8ec; --grid: #eef0f3;
+  --text-primary: #0f172a; --text-secondary: #5b6474; --text-muted: #8a92a0;
+  --ham: #2a78d6; --spam: #eb6834; --ham-wash: rgba(42,120,214,.08);
+  --seq-0: #f3f5f8; --seq-1: #dbe8fb; --seq-2: #a9c8f3; --seq-3: #2a78d6; --seq-4: #1c5cab;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #18191c; --border: #2a2c31; --grid: #24262a;
+    --text-primary: #eceef1; --text-secondary: #a1a7b3; --text-muted: #7c8390;
+    --ham: #3987e5; --spam: #d95926; --ham-wash: rgba(57,135,229,.12);
+    --seq-0: #222428; --seq-1: #15325a; --seq-2: #1c4f8f; --seq-3: #3987e5; --seq-4: #86b6ef;
+  }
+}
+:root[data-theme="dark"] {
+  --surface: #18191c; --border: #2a2c31; --grid: #24262a;
+  --text-primary: #eceef1; --text-secondary: #a1a7b3; --text-muted: #7c8390;
+  --ham: #3987e5; --spam: #d95926; --ham-wash: rgba(57,135,229,.12);
+  --seq-0: #222428; --seq-1: #15325a; --seq-2: #1c4f8f; --seq-3: #3987e5; --seq-4: #86b6ef;
+}
+
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--text-secondary); margin: 0 0 10px; flex-wrap: wrap; }
+.sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; flex: none; }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg .axis-title { fill: var(--text-muted); }
+svg .val { fill: var(--text-secondary); font-weight: 500; }
+svg .cat { fill: var(--text-primary); font-size: 12px; }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .hit { fill: transparent; }
+
+.cm { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; margin-top: 4px; font-size: 12.5px; }
+.cm .h { color: var(--text-muted); padding: 4px 8px; text-align: center; font-size: 12px; }
+.cm .rh { color: var(--text-muted); padding: 4px 8px; display: flex; align-items: center; font-size: 12px; }
+.cm .cell { border-radius: 12px; padding: 22px 8px; text-align: center; }
+.cm .cell b { display: block; font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }
+.cm .cell small { font-size: 12px; opacity: .85; }
+
+#tip { position: fixed; pointer-events: none; z-index: 1500; background: #0f172a; color: #f1f5f9;
+  padding: 6px 10px; border-radius: 8px; font-size: 12px; line-height: 1.4; opacity: 0; transition: opacity .08s; max-width: 280px;
+  box-shadow: 0 8px 24px -8px rgba(15, 23, 42, .4); }
+
+/* Code panels (request/response inspector): dark in both modes, like developer docs. */
+:root {
+  --code-bg: #0f141b; --code-head: #151b24; --code-line: rgba(255,255,255,.06); --code-text: #d7dde6; --code-muted: #8b95a5;
+  --j-key: #7cc4fa; --j-str: #9fe0b0; --j-num: #f8b37a; --j-lit: #c5a8fb;
+  /* brighter question-type accents for use on the dark code background */
+  --qc-noul: #34d399; --qc-choice: #a78bfa; --qc-score: #f472b6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --code-bg: #0b0d10; --code-head: #111419; --code-line: rgba(255,255,255,.05); }
+}
+:root[data-theme="dark"] { --code-bg: #0b0d10; --code-head: #111419; --code-line: rgba(255,255,255,.05); }
+
+.json { background: var(--code-bg); color: var(--code-text); font-family: var(--font-mono), ui-monospace, "Cascadia Code", Consolas, monospace;
+  white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.6; }
+.json .j-key { color: var(--j-key); } .json .j-str { color: var(--j-str); }
+.json .j-num { color: var(--j-num); } .json .j-lit { color: var(--j-lit); }
+.json::-webkit-scrollbar { width: 8px; height: 8px; }
+.json::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 8px; }
+
+/* JEV question types: noul = aqua, choice = violet, score = magenta. Blue/orange stay reserved for ham/spam. */
+:root { --q-noul: #10a37f; --q-choice: #6d5bd0; --q-score: #e0559a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --q-noul: #2fbf93; --q-choice: #9a8cf0; --q-score: #ec6fae; }
+}
+:root[data-theme="dark"] { --q-noul: #2fbf93; --q-choice: #9a8cf0; --q-score: #ec6fae; }

@@ -1,65 +1,69 @@
 # JEV showcase project
 
 Demos of **JEV** (TypeSafe AI "System One" decision model) for research and teaching at La Trobe.
-The main demo classifies public emails: spam or not (scored against ground truth) plus a topic category.
+One email → one JEV call → three answers (noul: spam?, choice: category, score: urgency), on the public Enron-Spam dataset.
+Repo: https://github.com/harsha89/jev-demo (public). Target host: **Netlify**.
 
 ## Layout
 
-- `jev_spam_demo.py` — CLI: runs JEV on a balanced Enron-Spam sample, prints metrics, writes CSV + `_summary.json` + HTML report.
-- `jev_report.py` — builds the self-contained HTML report (inline SVG charts, no dependencies). `--report <csv>` rebuilds it without calling JEV.
-- `jev_gmail_classifier.py` — the user's original Gmail classifier (reference for the JEV call shape).
-- `enron_spam_test.jsonl` — cached Enron-Spam test split (2,000 emails, HF `SetFit/enron_spam`).
-- `jev-demo-app/` — Next.js 16 + MUI v9 web app: enter the TypeSafe key, run on the dataset, live charts, request/response inspector, "Try your own email" with an example generator.
-  - `lib/config.ts` — JEV URL, model, the two questions and category criteria.
-  - `lib/examples.ts` — template generator for example emails (one template set per category + spam).
-  - `lib/metrics.ts` — accuracy/precision/recall/F1/AUC/ROC, CSV export.
-  - `app/api/classify/route.ts` — server proxy to JEV; returns the result plus a `trace` (request sent, key masked; raw response, status, latency).
-  - `app/api/sample/route.ts` — seeded balanced sample from `data/enron_spam_test.jsonl`.
-  - `app/theme.ts` — MUI theme and the shared radius scale; `components/Charts.tsx` — SVG charts (incl. `ScoreLevels`, `ScoreByCategory`); `components/CallInspector.tsx` — side-by-side request/response viewer; `components/ScoreView.tsx` — Score result (per-level probabilities) and the Score question editor.
+The Next.js 16 + MUI v9 app is at the **repository root** (Netlify needs no base directory).
+
+- `app/page.tsx` — the page. Top bar (key-status chip + Settings dialog: API key, Score rubric, parallel calls) and a segmented control with three views:
+  "Try an email" (compose → three answer cards → request/response), "Run on dataset" (run bar → `ResultsView`), "Example · no key needed" (saved run).
+  New visitors land on Example; a remembered key starts on Try. **Keep new features inside this structure** (user asked for less clutter).
+- `app/api/classify/route.ts` — server proxy to JEV; returns the result + `trace` (request with key masked; raw response, status, latency).
+- `app/api/sample/route.ts` — seeded balanced sample from `data/enron_spam_test.jsonl`.
+- `app/api/example/route.ts` — GET serves `data/example-run.json`; POST (save as example) works **only in `next dev`**.
+- `app/theme.ts` (theme, radius scale), `app/globals.css` (chart, code-panel and question-type tokens).
+- `components/` — `AnswerCards` (three answer cards), `CallInspector` (request/response: "By question" default + "Raw JSON"; exports `QTYPES`, `QTypeChip`, `tint`),
+  `ResultsView` (Spam / Category / Score / Emails tabs; exports `Block`, `LabelChip`), `Charts` (SVG charts), `ScoreView` (Score rubric editor).
+- `lib/config.ts` (JEV URL/model, questions, types incl. `ExampleRun`), `lib/metrics.ts`, `lib/examples.ts` (template email generator).
+- `data/enron_spam_test.jsonl` (2,000 emails), `data/example-run.json` (Example tab data).
+- `python/` — `jev_spam_demo.py` + `jev_report.py`: CLI run with CSV/JSON/HTML report (run from inside `python/`).
+- `next.config.ts` — `outputFileTracingIncludes` ships the data files with the API functions; `agentRules: false` stops `next dev` writing AGENTS.md/CLAUDE.md.
+- `netlify.toml` — build `npm run build`, publish `.next`, Node 22.
 
 ## Commands
 
 ```
-python jev_spam_demo.py [-n 50] [--seed 42]          # needs TYPESAFE_API_KEY
-python jev_spam_demo.py --report results.csv         # rebuild HTML report offline
-cd jev-demo-app && npm run dev                       # http://localhost:3000
-cd jev-demo-app && npx tsc --noEmit && npx next build
+npm run dev                                          # http://localhost:3000
+npx tsc --noEmit && npx next build
+cd python && python jev_spam_demo.py [-n 50] [--seed 42]   # needs TYPESAFE_API_KEY
+cd python && python jev_spam_demo.py --report results.csv  # rebuild HTML report offline
 ```
 
 ## JEV API
 
-- `POST https://api.typesafe.ai/v1/systemone`, `Authorization: Bearer <TYPESAFE_API_KEY>`.
-- Docs: https://docs.typesafe.ai (primitives: `/primitives/noul`, `/primitives/choice`, `/primitives/score`). Three question types can be mixed in one call:
+- `POST https://api.typesafe.ai/v1/systemone`, `Authorization: Bearer <key>`. Docs: https://docs.typesafe.ai (`/primitives/noul`, `/primitives/choice`, `/primitives/score`).
   - **noul**: yes/no → `answers.<q>.noul` (probability 0–1, no separate confidence). Optional `criteria: {true, false}`.
   - **choice**: `criteria` = `{option: description}` → `choice`, `confidence`, `probabilities` per option.
-  - **score**: `criteria` = **ordered array** of 2–10 level descriptions (lowest first, levels numbered 0..n-1) → `score` (fractional, Σ level × probability), `confidence`, `probabilities` and `legend` keyed by level number as a string.
-- Response envelope: `{ model, usage, answers: { <question name>: {...} } }`. The app's parsing matches the docs; still not run against the live API from here.
-- The demo asks all three per email: `is_spam` (noul), `category` (choice), and a Score question (default `urgency`, 5 levels in `DEFAULT_SCORE_QUESTION` / `SCORE_QUESTION`). In the app the score rubric is editable (or switched off) in the "3 · Score question" panel and sent per request as `scoreQuestion`.
-- `JEV_URL` env var overrides the endpoint (used for testing against a mock).
+  - **score**: `criteria` = **ordered array** of 2–10 levels (lowest first, numbered 0..n-1) → `score` (fractional, Σ level × probability), `confidence`, `probabilities`/`legend` keyed by level as string.
+- Envelope: `{ model, usage, answers: { <question name>: {...} } }`. Parsing matches the docs; **not yet run against the live API from here**.
+- Questions per email: `is_spam` (noul), `category` (choice), Score (default `urgency`, editable in Settings, sent per request as `scoreQuestion`).
+- `JEV_URL` env var overrides the endpoint (testing against a mock).
 
 ## Rules
 
-- **Keep categories in sync** between `jev-demo-app/lib/config.ts`, `jev_spam_demo.py` and `jev-demo-app/lib/examples.ts`. Current set: marketing, finance, sales, customer_support, other.
-- **Never log or store the API key** server-side. The browser sends it per request (`x-typesafe-key`); traces show only the last 4 characters.
-- **Never present mock or synthetic numbers as JEV results.** Without a real key, test against a local mock JEV and say clearly that the numbers are not JEV's.
-- Enron-Spam has spam/ham labels only. Category answers have no ground truth, so don't report category "accuracy" on Enron.
+- **Keep categories in sync** between `lib/config.ts`, `lib/examples.ts` and `python/jev_spam_demo.py`: marketing, finance, sales, customer_support, other.
+- **Never log or store the API key** server-side. Traces show only the last 4 characters.
+- **Server key fallback is off in production** unless `ALLOW_SERVER_KEY=true`; never suggest setting `TYPESAFE_API_KEY` on the public Netlify site.
+- **Never present mock or synthetic numbers as JEV results.** `data/example-run.json` currently holds **illustrative** data (`source: "illustrative"`, response `model: "illustrative-not-jev"`), and the Example tab says so. Replace it via "Save as example" after a real run, never by hand-editing numbers.
+- Enron-Spam has spam/ham labels only; don't report category "accuracy" on Enron.
 
 ## UI preferences (user feedback)
 
-- The user wants a polished, Google Material look, using MUI components rather than hand-rolled HTML controls.
-- **Corners must be consistent.** Use the radius scale in `app/theme.ts`: controls 8px (buttons, inputs, chips, menus), small tags 6px, nested panels 12px, cards 16px, dialogs 20px. Don't mix pill and rounded-rectangle shapes, and don't hard-code other radii.
-- Result/status chips use the soft tonal style so they don't look like buttons.
-- Charts: ham = blue (`--ham`), spam = orange (`--spam`), used consistently. Light and dark mode both follow the OS, and both must look right.
-- **Check UI changes visually before reporting done.** Screenshot light, dark and phone width (390px), including high-DPI close-ups of buttons and edges.
+- Polished, sleek Material look with MUI components. Font Inter (+ JetBrains Mono for code). Cards are borderless with a hairline ring + soft shadow; avoid stacking outlines.
+- **Consistent corners** from `RADIUS` in `app/theme.ts`: controls 8px, small tags 6px, nested panels 12px, cards 16px, dialogs 20px.
+- Question-type colours everywhere a type appears: noul = aqua, choice = violet, score = magenta (`--q-*`; brighter `--qc-*` on dark code panels). Ham = blue, spam = orange.
+- Request/response JSON uses dark code panels in both themes. The user likes the "By question" inspector; keep it central.
+- **Check UI changes visually before reporting done**: light, dark and 390px phone width.
 
 ## Testing setup (Windows)
 
-- Shell: PowerShell or Git Bash on Windows; Python 3.9, Node 24.
-- UI checks: `playwright-core` driving the installed Edge (`chromium.launch({ channel: "msedge" })`), against `next start -p 3123` with `JEV_URL` pointing at a small mock JEV on port 4010.
-- Stopping a background task can leave its `node` process running. Free ports with
-  `Get-NetTCPConnection -LocalPort <port> -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`.
-- `next dev` regenerates `jev-demo-app/AGENTS.md` and `jev-demo-app/CLAUDE.md`. Leave them alone; this file is the real project guide.
+- PowerShell or Git Bash; Python 3.9, Node 24. UI checks: `playwright-core` with the installed Edge (`chromium.launch({ channel: "msedge" })`) against `next start -p 3123` with `JEV_URL` → a local mock JEV.
+- Stopping a background task can leave `node` running. Free ports with `Get-NetTCPConnection -LocalPort <port> -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`.
+- GitHub CLI is not installed system-wide; a portable copy was used once for the first push.
 
 ## Ideas not yet built
 
-Category scoring on generated examples (5×5 confusion matrix), save/replay runs for offline demos, editable questions in the UI, Naive Bayes baseline, calibration plot, latency/cost panel, retry with backoff on HTTP 429.
+Category scoring on generated examples (5×5 confusion matrix), Naive Bayes baseline, calibration plot, latency/cost panel, retry with backoff on HTTP 429.

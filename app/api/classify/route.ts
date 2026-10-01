@@ -21,11 +21,15 @@ function readScoreQuestion(raw: unknown): ScoreQuestion | null {
   };
 }
 
+// The server's own key is only a fallback locally, or when explicitly allowed. On a public deployment
+// it would otherwise let every visitor spend the owner's key.
+const serverKeyAllowed = process.env.NODE_ENV === "development" || process.env.ALLOW_SERVER_KEY === "true";
+
 // Proxies one email to JEV. The key comes from the browser (x-typesafe-key header) or,
-// if left blank, from the server's TYPESAFE_API_KEY env var. It is never logged or stored.
+// if allowed and left blank, from the server's TYPESAFE_API_KEY env var. It is never logged or stored.
 // Every reply includes a `trace` (request sent + raw response) so the UI can show both side by side.
 export async function POST(req: Request) {
-  const key = req.headers.get("x-typesafe-key") || process.env.TYPESAFE_API_KEY;
+  const key = req.headers.get("x-typesafe-key") || (serverKeyAllowed ? process.env.TYPESAFE_API_KEY : undefined);
   if (!key) return Response.json({ error: "No TypeSafe API key provided." }, { status: 401 });
 
   const { subject = "", body = "", scoreQuestion } = await req.json();
@@ -86,6 +90,7 @@ export async function POST(req: Request) {
       p_spam: Number(answers.is_spam.noul),
       category: String(cat.choice),
       category_conf: Number(cat.confidence ?? 0),
+      category_probs: (cat.probabilities as Record<string, number>) ?? undefined,
       score,
       trace,
     });
